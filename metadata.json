@@ -1,0 +1,6 @@
+{
+  "name": "KFind",
+  "description": "Premium Liquid Glass Mobile Website Directory",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

@@ -1,0 +1,1657 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>KFind</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        body {
+            background-color: #05050a;
+            color: #ffffff;
+            overflow: hidden; /* Mobile app feel */
+            width: 100vw;
+            height: 100vh;
+            position: relative;
+        }
+
+        /* Ambient Glowing Orbs */
+        .orb {
+            position: absolute;
+            border-radius: 50%;
+            z-index: -1;
+            pointer-events: none;
+        }
+        .orb-1 {
+            width: 400px;
+            height: 400px;
+            background: rgba(147, 51, 234, 0.2);
+            top: -10%;
+            left: -10%;
+            filter: blur(120px);
+        }
+        .orb-2 {
+            width: 500px;
+            height: 500px;
+            background: rgba(37, 99, 235, 0.2);
+            bottom: -10%;
+            right: -10%;
+            filter: blur(150px);
+        }
+
+        /* Generic Glass utility */
+        .glass {
+            background: rgba(255, 255, 255, 0.03);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 26px;
+        }
+
+        /* Screens */
+        .screen {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: none;
+            flex-direction: column;
+            padding-bottom: 120px;
+            overflow-y: auto;
+            opacity: 0;
+            transition: opacity 0.4s cubic-bezier(0.16, 1, 0.3, 1), transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            transform: scale(0.97);
+        }
+        .screen.active {
+            display: flex;
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        /* Screen Title */
+        .screen-title {
+            font-size: 24px;
+            font-weight: 700;
+            padding: 24px 24px 8px;
+            letter-spacing: -0.025em;
+            color: #ffffff;
+        }
+        .screen-title::after {
+            content: ' Curated Web Experiences';
+            display: block;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 12px;
+            margin-top: 4px;
+            font-weight: 400;
+            letter-spacing: normal;
+        }
+        #screen-dev .screen-title::after {
+            content: ' Restricted Developer Space';
+        }
+        #screen-settings .screen-title::after {
+            content: ' Customization & Preferences';
+        }
+        #screen-about .screen-title::after {
+            content: ' Coming soon';
+        }
+
+        /* Home Header / Search */
+        .header {
+            padding: 16px 24px;
+            position: sticky;
+            top: 0;
+            z-index: 10;
+        }
+        .search-bar {
+            width: 100%;
+            padding: 12px 16px 12px 42px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.1) url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.4)" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>') no-repeat 14px center;
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            transition: all 0.3s;
+            box-shadow: 0 0 15px rgba(255,255,255,0.02);
+        }
+        .search-bar:focus {
+            background-color: rgba(255, 255, 255, 0.15);
+            box-shadow: 0 0 20px rgba(255,255,255,0.1);
+        }
+        .search-bar::placeholder {
+            color: rgba(255, 255, 255, 0.3);
+        }
+
+        /* Categories */
+        .categories {
+            display: flex;
+            gap: 8px;
+            padding: 4px 24px 16px;
+            overflow-x: auto;
+            scrollbar-width: none;
+            -ms-overflow-style: none;
+        }
+        .categories::-webkit-scrollbar {
+            display: none;
+        }
+        .chip {
+            padding: 6px 16px;
+            border-radius: 9999px;
+            white-space: nowrap;
+            font-size: 11px;
+            font-weight: 500;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: rgba(255, 255, 255, 0.7);
+            transition: all 0.2s ease;
+            cursor: pointer;
+        }
+        .chip.active {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 700;
+            border-color: #ffffff;
+            box-shadow: 0 0 15px rgba(255, 255, 255, 0.3);
+        }
+
+        /* Cards Layout */
+        .cards-container {
+            padding: 8px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            position: relative;
+            z-index: 1;
+        }
+
+        .web-card {
+                padding: 16px;
+                display: flex;
+                flex-direction: column;
+                gap: 12px;
+                animation: slideUp 0.6s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+                opacity: 0;
+                transform: translateY(24px);
+                
+                position: relative;
+                background: rgba(255, 255, 255, 0.03);
+                border: 1px solid rgba(255, 255, 255, 0.1);
+                backdrop-filter: blur(40px);
+                -webkit-backdrop-filter: blur(40px);
+                border-radius: 26px;
+                z-index: 2;
+                transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1), box-shadow 0.3s ease, background 0.3s ease;
+            }
+            .web-card:active {
+                transform: scale(0.96) translateY(0);
+                background: rgba(255, 255, 255, 0.06);
+            }
+            .web-card::before {
+                content: '';
+                position: absolute;
+                inset: -4px;
+                background: linear-gradient(135deg, rgba(59,130,246,0.3), rgba(147,51,234,0.3));
+                border-radius: 28px;
+                opacity: 0;
+                filter: blur(16px);
+                z-index: -1;
+                transition: opacity 0.4s ease;
+            }
+            .web-card:hover::before {
+                opacity: 1;
+            }
+
+        .web-card-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+        }
+        .web-logo {
+            width: 48px;
+            height: 48px;
+            border-radius: 12px;
+            background: linear-gradient(to top right, #3b82f6, #22d3ee);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+            flex-shrink: 0;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
+            position: relative;
+        }
+        .web-logo img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            border-radius: 12px;
+            background: #fff;
+        }
+        .web-info {
+            flex: 1;
+            overflow: hidden;
+        }
+        .web-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: #ffffff;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            margin-bottom: 2px;
+        }
+        .web-category {
+            font-size: 10px;
+            color: #60a5fa;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            font-weight: 700;
+        }
+        
+        .web-desc {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.6);
+            line-height: 1.6;
+        }
+        .web-useful {
+            background: rgba(255, 255, 255, 0.05);
+            border-radius: 12px;
+            padding: 10px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.8);
+            line-height: 1.4;
+        }
+        .web-useful::before {
+            content: 'WHY USEFUL';
+            display: block;
+            font-size: 9px;
+            color: rgba(255, 255, 255, 0.4);
+            text-transform: uppercase;
+            font-weight: 700;
+            letter-spacing: -0.05em;
+            margin-bottom: 2px;
+        }
+
+        .glass-btn {
+                background: rgba(255, 255, 255, 0.1);
+                border: 1px solid rgba(255, 255, 255, 0.15);
+                border-radius: 14px;
+                color: #ffffff;
+                font-size: 11px;
+                font-weight: 700;
+                letter-spacing: 0.025em;
+                padding: 12px;
+                text-align: center;
+                text-decoration: none;
+                display: block;
+                width: 100%;
+                transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+                position: relative;
+                overflow: hidden;
+            }
+            .glass-btn::after {
+                content: '';
+                position: absolute;
+                top: 0;
+                left: -100%;
+                width: 100%;
+                height: 100%;
+                background: linear-gradient(90deg, transparent, rgba(255,255,255,0.2), transparent);
+                transition: left 0.5s ease;
+            }
+            .glass-btn:active {
+                transform: scale(0.95);
+                background: rgba(255, 255, 255, 0.25);
+                box-shadow: 0 0 20px rgba(255,255,255,0.1);
+            }
+            .web-card:hover .glass-btn::after {
+                left: 100%;
+            }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: rgba(255,255,255,0.4);
+            font-size: 13px;
+        }
+
+        @keyframes slideUp {
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        
+        /* Bottom Nav */
+        .bottom-nav {
+            position: fixed;
+            bottom: 24px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: calc(100% - 48px);
+            max-width: 380px;
+            height: 72px;
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            z-index: 100;
+            padding: 0 8px;
+            background: rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(40px) saturate(150%);
+            -webkit-backdrop-filter: blur(40px) saturate(150%);
+            border-radius: 36px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5), inset 0 1px 0 rgba(255, 255, 255, 0.1);
+        }
+        .nav-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            gap: 4px;
+            color: #ffffff;
+            opacity: 0.5;
+            text-decoration: none;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+            cursor: pointer;
+            width: 56px;
+            height: 56px;
+            border-radius: 50%;
+            position: relative;
+        }
+        .nav-item svg {
+            width: 24px;
+            height: 24px;
+            stroke: currentColor;
+            stroke-width: 2;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            transition: all 0.5s cubic-bezier(0.34, 1.56, 0.64, 1);
+        }
+        .nav-item span {
+            display: none;
+        }
+        .nav-item.active {
+            opacity: 1;
+            background: #ffffff;
+            color: #000000;
+            box-shadow: 0 8px 24px rgba(255, 255, 255, 0.4);
+            transform: translateY(-8px);
+        }
+        .nav-item.active svg {
+            transform: scale(1.15);
+        }
+        
+        .nav-indicator {
+            position: absolute;
+            bottom: -6px;
+            width: 4px;
+            height: 4px;
+            border-radius: 50%;
+            background: #ffffff;
+            opacity: 0;
+            transition: all 0.4s;
+            box-shadow: 0 0 10px #ffffff;
+        }
+        .nav-item.active .nav-indicator {
+            opacity: 1;
+            bottom: -8px;
+            transform: scale(1.5);
+            background: #000000;
+            box-shadow: none;
+        }
+
+        /* Password Modal */
+        .modal-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(5, 5, 16, 0.6);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            z-index: 200;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            opacity: 0;
+            pointer-events: none;
+            transition: opacity 0.3s ease;
+        }
+        .modal-overlay.active {
+            opacity: 1;
+            pointer-events: all;
+        }
+        .modal-content {
+            width: 85%;
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            background: rgba(255, 255, 255, 0.08);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            backdrop-filter: blur(64px);
+            -webkit-backdrop-filter: blur(64px);
+            border-radius: 32px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+            transform: scale(0.9);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .modal-content::before {
+            content: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.8)" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"/></svg>');
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 64px;
+            height: 64px;
+            border-radius: 50%;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            margin-bottom: 16px;
+        }
+        .modal-overlay.active .modal-content {
+            transform: scale(1);
+        }
+        .modal-title {
+            font-size: 18px;
+            font-weight: 600;
+            text-align: center;
+            color: #ffffff;
+            margin-bottom: 4px;
+        }
+        .modal-title::after {
+            content: 'RESTRICTED DEVELOPER SPACE';
+            display: block;
+            color: rgba(255, 255, 255, 0.4);
+            font-size: 10px;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-top: 4px;
+            font-weight: 400;
+        }
+        
+        .password-input {
+            width: 100%;
+            margin-top: 24px;
+            padding: 14px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            text-align: center;
+            font-size: 12px;
+            outline: none;
+            letter-spacing: 4px;
+            transition: all 0.3s;
+        }
+        .password-input:focus {
+            border-color: rgba(255, 255, 255, 0.2);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        .password-input::placeholder {
+            letter-spacing: normal;
+        }
+        
+        .error-msg {
+            color: #ef4444;
+            font-size: 11px;
+            font-weight: 500;
+            text-align: center;
+            height: 14px;
+            opacity: 0;
+            margin-top: 8px;
+            transition: opacity 0.2s;
+        }
+        .error-msg.visible {
+            opacity: 1;
+        }
+        
+        .modal-actions {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            margin-top: 8px;
+        }
+        .modal-btn {
+            width: 100%;
+            border: none;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        #btnSubmitAuth {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 700;
+            border-radius: 16px;
+            font-size: 14px;
+            padding: 14px;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+        }
+        #btnSubmitAuth:active {
+            transform: scale(0.97);
+        }
+        #btnCancelAuth {
+            background: transparent;
+            color: rgba(255, 255, 255, 0.3);
+            font-size: 10px;
+            font-weight: 700;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            padding: 0;
+            box-shadow: none;
+        }
+
+        .shake {
+            animation: shake 0.4s;
+        }
+        @keyframes shake {
+            0%, 100% { transform: scale(1) translateX(0); }
+            20% { transform: scale(1) translateX(-10px); }
+            40% { transform: scale(1) translateX(10px); }
+            60% { transform: scale(1) translateX(-10px); }
+            80% { transform: scale(1) translateX(10px); }
+        }
+
+        /* Dev Panel Form */
+        .dev-form {
+            padding: 8px 24px 24px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+        .form-group label {
+            font-size: 11px;
+            color: rgba(255, 255, 255, 0.7);
+            font-weight: 600;
+            padding-left: 4px;
+        }
+        .form-input {
+            width: 100%;
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+            font-size: 14px;
+            outline: none;
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            transition: all 0.3s;
+        }
+        .form-input:focus {
+            border-color: rgba(255, 255, 255, 0.3);
+            background: rgba(255, 255, 255, 0.1);
+        }
+        select.form-input {
+            appearance: none;
+            background-image: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="rgba(255,255,255,0.7)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>');
+            background-repeat: no-repeat;
+            background-position: right 16px center;
+        }
+        textarea.form-input {
+            resize: none;
+            height: 100px;
+        }
+        .submit-btn {
+            background: #ffffff;
+            color: #000000;
+            font-weight: 700;
+            padding: 16px;
+            border-radius: 16px;
+            border: none;
+            font-size: 14px;
+            margin-top: 16px;
+            cursor: pointer;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.4);
+            transition: transform 0.2s;
+        }
+        .submit-btn:active {
+            transform: scale(0.97);
+        }
+
+        /* About Screen */
+        .about-content {
+            flex: 1;
+            display: flex;
+            align-items: flex-start;
+            justify-content: center;
+            padding: 24px;
+            perspective: 1000px;
+        }
+        .about-card {
+            width: 100%;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+            padding: 24px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(40px);
+            -webkit-backdrop-filter: blur(40px);
+            border-radius: 26px;
+            animation: float-card 6s ease-in-out infinite;
+        }
+        .about-header {
+            font-size: 16px;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.025em;
+        }
+        .about-desc {
+            font-size: 13px;
+            color: rgba(255, 255, 255, 0.7);
+            line-height: 1.6;
+        }
+        .about-divider {
+            height: 1px;
+            background: rgba(255, 255, 255, 0.1);
+            width: 100%;
+            margin: 4px 0;
+        }
+        .about-link {
+            display: inline-block;
+            margin-top: 10px;
+            padding: 10px 16px;
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #ffffff;
+            text-decoration: none;
+            border-radius: 12px;
+            font-size: 13px;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+        .about-link:active {
+            transform: scale(0.97);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        @keyframes float-card {
+            0%, 100% { transform: translateY(0) rotateX(0deg); }
+            50% { transform: translateY(-8px) rotateX(2deg); }
+        }
+
+        /* Success Toast */
+        .toast {
+            position: fixed;
+            top: 24px;
+            left: 50%;
+            transform: translateX(-50%) translateY(-100px);
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: #fff;
+            padding: 12px 24px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+            z-index: 1000;
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            transition: transform 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+        }
+        .toast.show {
+            transform: translateX(-50%) translateY(0);
+        }
+
+        /* Watermark */
+        #watermark-kabbo {
+            position: fixed;
+            top: 24px;
+            right: 24px;
+            background: rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: rgba(255, 255, 255, 0.7);
+            padding: 6px 12px;
+            border-radius: 12px;
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.05em;
+            text-transform: uppercase;
+            z-index: 999999;
+            pointer-events: none;
+            user-select: none;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.2);
+        }
+
+    
+        /* Settings Elements */
+        .settings-list {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            width: 100%;
+        }
+        .settings-group {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border-radius: 20px;
+            padding: 16px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+        .settings-group-title {
+            font-size: 11px;
+            text-transform: uppercase;
+            font-weight: 700;
+            color: var(--accent, #3b82f6);
+            letter-spacing: 0.1em;
+            margin-bottom: -4px;
+        }
+        .setting-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+        }
+        .setting-info {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+            flex: 1;
+        }
+        .setting-name {
+            font-size: 14px;
+            font-weight: 600;
+            color: var(--text-main, #ffffff);
+        }
+        .setting-desc {
+            font-size: 11px;
+            color: var(--text-muted, rgba(255, 255, 255, 0.5));
+            line-height: 1.4;
+        }
+        .setting-control {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        
+        /* Toggle Switch */
+        .toggle-switch {
+            position: relative;
+            width: 44px;
+            height: 24px;
+            background: rgba(255, 255, 255, 0.2);
+            border-radius: 24px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+        .toggle-switch::after {
+            content: '';
+            position: absolute;
+            top: 2px;
+            left: 2px;
+            width: 20px;
+            height: 20px;
+            background: #ffffff;
+            border-radius: 50%;
+            transition: all 0.3s cubic-bezier(0.34, 1.56, 0.64, 1);
+            box-shadow: 0 2px 4px rgba(0,0,0,0.2);
+        }
+        .toggle-switch.active {
+            background: var(--accent, #3b82f6);
+        }
+        .toggle-switch.active::after {
+            transform: translateX(20px);
+        }
+
+        /* Select / Input */
+        .setting-select, .setting-input {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-main, #fff);
+            padding: 8px 12px;
+            border-radius: 12px;
+            font-size: 12px;
+            outline: none;
+            cursor: pointer;
+            text-align: right;
+            max-width: 120px;
+        }
+        .setting-select option {
+            background: #000;
+            color: #fff;
+        }
+        .setting-btn {
+            background: rgba(255, 255, 255, 0.1);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            color: var(--text-main, #fff);
+            padding: 8px 16px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .setting-btn:active {
+            transform: scale(0.95);
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        /* Dynamic Classes Applied by Settings */
+        body.theme-light {
+            background-color: #f3f4f6;
+            color: #111827;
+            background: #f3f4f6;
+            --text-main: #111827;
+            --text-muted: rgba(0, 0, 0, 0.5);
+        }
+        body.theme-light .screen-title { color: #111827; }
+        body.theme-light .glass,
+        body.theme-light .settings-group,
+        body.theme-light .web-card,
+        body.theme-light .about-card,
+        body.theme-light .modal-content {
+            background: rgba(255, 255, 255, 0.7);
+            border: 1px solid rgba(0, 0, 0, 0.1);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.05);
+            color: #111827;
+        }
+        body.theme-light .search-bar, body.theme-light .form-input, body.theme-light .setting-select {
+            background-color: rgba(255, 255, 255, 0.8);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #111827;
+        }
+        body.theme-light .chip {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #374151;
+        }
+        body.theme-light .chip.active {
+            background: #111827;
+            color: #ffffff;
+        }
+        body.theme-light .web-name { color: #111827; }
+        body.theme-light .web-desc { color: rgba(0, 0, 0, 0.6); }
+        body.theme-light .web-useful { color: rgba(0, 0, 0, 0.8); background: rgba(0, 0, 0, 0.05); }
+        body.theme-light .glass-btn, body.theme-light .setting-btn {
+            background: rgba(0, 0, 0, 0.05);
+            border-color: rgba(0, 0, 0, 0.1);
+            color: #111827;
+        }
+        body.theme-light .bottom-nav {
+            background: rgba(255, 255, 255, 0.8);
+            border-color: rgba(0, 0, 0, 0.1);
+        }
+        body.theme-light .nav-item { color: rgba(0, 0, 0, 0.5); }
+        body.theme-light .nav-item.active { color: #ffffff; background: #111827; }
+        body.theme-light .nav-indicator { background: #111827; }
+        body.theme-light .orb { opacity: 0.2; }
+        
+        body.glass-off .glass,
+        body.glass-off .web-card,
+        body.glass-off .settings-group,
+        body.glass-off .bottom-nav,
+        body.glass-off .search-bar,
+        body.glass-off .setting-select,
+        body.glass-off .form-input,
+        body.glass-off .toast {
+            backdrop-filter: none !important;
+            -webkit-backdrop-filter: none !important;
+            background: #171724;
+            border-color: #333;
+        }
+        body.theme-light.glass-off .glass,
+        body.theme-light.glass-off .web-card,
+        body.theme-light.glass-off .settings-group,
+        body.theme-light.glass-off .bottom-nav {
+            background: #ffffff;
+            border-color: #ddd;
+        }
+        
+        body.compact-mode .web-card { padding: 10px; gap: 8px; }
+        body.compact-mode .web-logo { width: 36px; height: 36px; border-radius: 8px; }
+        body.compact-mode .web-name { font-size: 13px; margin-bottom: 0; }
+        body.compact-mode .web-desc { font-size: 10px; line-height: 1.4; }
+        body.compact-mode .screen-title { font-size: 20px; padding: 16px 24px 8px; }
+        body.compact-mode .cards-container { padding: 8px 24px 24px; gap: 12px; }
+        body.compact-mode .settings-group { padding: 12px; gap: 12px; }
+
+        body.low-data img { display: none !important; }
+        body.low-data .web-logo { background: #333; }
+        
+        body.fast-load * {
+            animation-duration: 0.01s !important;
+            transition-duration: 0.01s !important;
+        }
+
+        #statsModal {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 1000;
+            display: flex; align-items: center; justify-content: center; opacity: 0; pointer-events: none;
+            transition: 0.3s; backdrop-filter: blur(10px);
+        }
+        #statsModal.active { opacity: 1; pointer-events: all; }
+        .stats-box {
+            background: var(--bg-card, rgba(30, 30, 40, 0.9));
+            border-radius: 20px; padding: 24px; min-width: 250px;
+            color: #fff; text-align: center; border: 1px solid rgba(255,255,255,0.1);
+        }
+        .stats-box h3 { margin-bottom: 16px; }
+        .stats-box p { font-size: 18px; font-weight: bold; margin-bottom: 8px; color: var(--accent, #3b82f6); }
+        .stats-box button { margin-top: 16px; padding: 8px 24px; border-radius: 12px; background: #fff; color: #000; border: none; cursor: pointer; font-weight: bold;}
+
+    </style>
+</head>
+<body>
+    
+    <!-- Watermark -->
+    <div id="watermark-kabbo">Made By Kabbo</div>
+
+    <!-- Ambient Orbs -->
+    <div class="orb orb-1"></div>
+    <div class="orb orb-2"></div>
+
+    <!-- MAIN SCREENS -->
+    <!-- Screen 1: Home -->
+    <div id="screen-home" class="screen active">
+        <div class="screen-title">Discover</div>
+        
+        <div class="header">
+            <input type="text" id="searchInput" class="search-bar" placeholder="Search apps, tools...">
+        </div>
+
+        <div class="categories" id="categoriesContainer">
+            <!-- Categories rendered dynamically -->
+        </div>
+
+        <div class="cards-container" id="cardsContainer">
+            <!-- Cards rendered dynamically -->
+        </div>
+    </div>
+
+    <!-- Screen 2: Developer Panel -->
+    <div id="screen-dev" class="screen">
+        <div class="screen-title">Developer Panel</div>
+        
+        <form class="dev-form" id="addWebForm">
+            <div class="form-group">
+                <label>Website Name</label>
+                <input type="text" id="devName" class="form-input" required autocomplete="off">
+            </div>
+            
+            <div class="form-group">
+                <label>Category</label>
+                <select id="devCategory" class="form-input" required>
+                    <option value="" disabled selected>Select category</option>
+                    <option value="Anime">Anime</option>
+                    <option value="Movies">Movies</option>
+                    <option value="Sports">Sports</option>
+                    <option value="Education">Education</option>
+                    <option value="AI Tools">AI Tools</option>
+                    <option value="Music">Music</option>
+                    <option value="Games">Games</option>
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>Logo URL</label>
+                <input type="url" id="devLogo" class="form-input" required autocomplete="off" placeholder="https://...">
+            </div>
+
+            <div class="form-group">
+                <label>Website URL</label>
+                <input type="url" id="devUrl" class="form-input" required autocomplete="off" placeholder="https://...">
+            </div>
+
+            <div class="form-group">
+                <label>Description</label>
+                <textarea id="devDesc" class="form-input" required placeholder="Brief description..."></textarea>
+            </div>
+
+            <div class="form-group">
+                <label>Why is it useful?</label>
+                <textarea id="devUseful" class="form-input" required placeholder="User benefit..."></textarea>
+            </div>
+
+            <button type="submit" class="submit-btn" id="submitBtn">Publish Website</button>
+        </form>
+    </div>
+
+    <!-- Screen 3: About -->
+    <div id="screen-about" class="screen">
+        <div class="screen-title">About</div>
+        <div class="about-content">
+            <div class="about-card glass">
+                <div class="about-header">👤 About Me</div>
+                <div class="about-desc">
+                    I am Kabbo, a student and creator from Bangladesh. I build simple and modern web apps focused on making useful tools and websites easier to access for students. My goal is to create clean, fast, and helpful digital experiences that anyone can use on mobile.
+                    <br><br>
+                    I am currently learning and improving my development skills while working on creative app ideas.
+                </div>
+                
+                <div class="about-divider"></div>
+                
+                <div class="about-header">📩 Contact</div>
+                <div class="about-desc">
+                    You can reach me here:<br>
+                    <a href="https://t.me/Kabbo_Dev?utm_source=chatgpt.com" target="_blank" class="about-link">Kabbo Telegram</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+
+    <!-- Screen 4: Settings -->
+    <div id="screen-settings" class="screen">
+        <div class="screen-title">Settings</div>
+        <div class="cards-container">
+            <div class="settings-list" id="settingsContainer">
+                <!-- Settings rendered via JS -->
+            </div>
+        </div>
+    </div>
+    
+    <!-- Stats Modal -->
+    <div id="statsModal">
+        <div class="stats-box glass">
+            <h3>App Usage Stats 📊</h3>
+            <div>Sessions: <span id="statSessions">0</span></div>
+            <div>Websites Opened: <span id="statOpened">0</span></div>
+            <div>Favorites: <span id="statFavs">0</span></div>
+            <button onclick="document.getElementById('statsModal').classList.remove('active')" class="glass-btn" style="color: #000; background: #fff; margin-top: 16px;">Close</button>
+        </div>
+    </div>
+
+    </div>
+
+    <!-- BOTTOM NAVIGATION -->
+    <nav class="bottom-nav glass">
+        <div class="nav-item active" data-target="screen-home">
+            <svg viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"></path><polyline points="9 22 9 12 15 12 15 22"></polyline></svg>
+            <span>Home</span>
+            <div class="nav-indicator"></div>
+        </div>
+        <div class="nav-item" data-target="screen-dev" id="navDevBtn">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="16"></line><line x1="8" y1="12" x2="16" y2="12"></line></svg>
+            <span>Developer</span>
+            <div class="nav-indicator"></div>
+        </div>
+        <div class="nav-item" data-target="screen-about">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="16" x2="12" y2="12"></line><line x1="12" y1="8" x2="12.01" y2="8"></line></svg>
+            <span>About</span>
+            <div class="nav-indicator"></div>
+        </div>
+        <div class="nav-item" data-target="screen-settings">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+            <span>Settings</span>
+            <div class="nav-indicator"></div>
+        </div>
+    </nav>
+
+    <!-- PASSWORD MODAL -->
+    <div class="modal-overlay" id="passwordModal">
+        <div class="modal-content glass" id="modalBox">
+            <div class="modal-title">Authentication Required</div>
+            <input type="password" id="authPassword" class="password-input" placeholder="Enter Password">
+            <div class="error-msg" id="authError">Incorrect password</div>
+            <div class="modal-actions">
+                <button class="glass-btn modal-btn btn-cancel" id="btnCancelAuth">Cancel</button>
+                <button class="glass-btn modal-btn" id="btnSubmitAuth">Unlock</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- SUCCESS TOAST -->
+    <div class="toast" id="toastMessage">Successfully added!</div>
+
+    <script>
+        
+        // --- SETTINGS STATE & LOGIC ---
+        let appSettings = {
+            theme: 'dark', // light, dark, auto
+            accentColor: '#3b82f6',
+            liquidGlass: true,
+            animSpeed: 'normal', // fast, normal, slow
+            autoSuggest: true,
+            defaultCategory: 'All',
+            compactMode: false,
+            soundFx: false,
+            defaultHome: 'screen-home',
+            imgQuality: 'high', // low, high
+            autoDark: false,
+            lowData: false,
+            fastLoad: false,
+            linkWarning: false,
+            saveData: true,
+            autoRefresh: false,
+            safeMode: false,
+            favSection: false
+        };
+        
+        let appStats = { sessions: 0, opened: 0, favs: 0 };
+        let favList = [];
+
+        function initSettings() {
+            const savedSettings = localStorage.getItem('kfind_settings');
+            if (savedSettings) appSettings = { ...appSettings, ...JSON.parse(savedSettings) };
+            
+            const savedStats = localStorage.getItem('kfind_stats');
+            if (savedStats) appStats = JSON.parse(savedStats);
+            appStats.sessions++;
+            saveStats();
+            
+            const savedFavs = localStorage.getItem('kfind_favs');
+            if (savedFavs) favList = JSON.parse(savedFavs);
+
+            applySettingsGlobally();
+            renderSettingsMenu();
+            
+            // Set initial Default Home
+            if(appSettings.defaultHome && appSettings.defaultHome !== 'screen-home') {
+                setTimeout(() => switchTab(appSettings.defaultHome, true), 100);
+            }
+        }
+
+        function saveSettings() {
+            localStorage.setItem('kfind_settings', JSON.stringify(appSettings));
+            applySettingsGlobally();
+        }
+        function saveStats() {
+            localStorage.setItem('kfind_stats', JSON.stringify(appStats));
+        }
+        function saveFavs() {
+            localStorage.setItem('kfind_favs', JSON.stringify(favList));
+            appStats.favs = favList.length;
+            saveStats();
+        }
+        
+        function playSound() {
+            if(!appSettings.soundFx) return;
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(440, ctx.currentTime);
+            osc.frequency.exponentialRampToValueAtTime(880, ctx.currentTime + 0.1);
+            gain.gain.setValueAtTime(0.1, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.1);
+            osc.start(ctx.currentTime);
+            osc.stop(ctx.currentTime + 0.1);
+        }
+
+        function applySettingsGlobally() {
+            // Theme
+            let isDark = appSettings.theme === 'dark';
+            if (appSettings.theme === 'auto' || appSettings.autoDark) {
+                const hour = new Date().getHours();
+                isDark = hour < 7 || hour > 19;
+            }
+            if (!isDark) document.body.classList.add('theme-light');
+            else document.body.classList.remove('theme-light');
+
+            // Accent
+            document.documentElement.style.setProperty('--accent', appSettings.accentColor);
+
+            // Liquid Glass
+            if (!appSettings.liquidGlass) document.body.classList.add('glass-off');
+            else document.body.classList.remove('glass-off');
+
+            // Compact Mode
+            if (appSettings.compactMode) document.body.classList.add('compact-mode');
+            else document.body.classList.remove('compact-mode');
+
+            // Low Data
+            if (appSettings.lowData) document.body.classList.add('low-data');
+            else document.body.classList.remove('low-data');
+
+            // Fast Load / Anim Speed
+            if (appSettings.fastLoad || appSettings.animSpeed === 'fast') document.body.classList.add('fast-load');
+            else document.body.classList.remove('fast-load');
+            
+            // Image Quality
+            document.querySelectorAll('img').forEach(img => {
+                if(appSettings.imgQuality === 'low') img.style.filter = 'blur(2px)';
+                else img.style.filter = 'none';
+            });
+            
+            renderCategories(); // update if favSection toggled
+            renderCards(); // Re-render to apply safe mode / category filters
+        }
+        
+        const settingsConfig = [
+            { group: 'Appearance', items: [
+                { id: 'theme', label: 'Color Theme', type: 'select', options: ['dark', 'light', 'auto'], desc: 'Choose app appearance' },
+                { id: 'accentColor', label: 'Accent Color', type: 'color', desc: 'Main highlight color' },
+                { id: 'liquidGlass', label: 'Liquid Glass Effect', type: 'toggle', desc: 'Frosted blur effects' },
+                { id: 'compactMode', label: 'Mobile Compact UI', type: 'toggle', desc: 'More items, less padding' }
+            ]},
+            { group: 'Behavior', items: [
+                { id: 'animSpeed', label: 'Animation Speed', type: 'select', options: ['normal', 'fast'], desc: 'Speed of transitions' },
+                { id: 'soundFx', label: 'Sound Effects', type: 'toggle', desc: 'Clicks and interactions' },
+                { id: 'defaultHome', label: 'Default Home Tab', type: 'select', options: ['screen-home', 'screen-dev', 'screen-about', 'screen-settings'], desc: 'Startup screen' },
+                { id: 'favSection', label: 'Favorite Websites Section', type: 'toggle', desc: 'Show favorites chip on home' }
+            ]},
+            { group: 'Data & Performance', items: [
+                { id: 'lowData', label: 'Low Data Mode', type: 'toggle', desc: 'Hide heavy images' },
+                { id: 'imgQuality', label: 'Image Quality Mode', type: 'select', options: ['high', 'low'], desc: 'Resolution of logos' },
+                { id: 'fastLoad', label: 'Fast Load Mode', type: 'toggle', desc: 'Disable all animations' },
+                { id: 'saveData', label: 'Save Data to Local Storage', type: 'toggle', desc: 'Save custom sites' }
+            ]},
+            { group: 'Security & Advanced', items: [
+                { id: 'linkWarning', label: 'External Link Warning', type: 'toggle', desc: 'Confirm before opening' },
+                { id: 'safeMode', label: 'Safe Mode', type: 'toggle', desc: 'Hide adult/risky links' },
+                { id: 'showStats', label: 'App Usage Stats', type: 'button', labelBtn: 'View', action: 'showStats', desc: 'See usage statistics' },
+                { id: 'clearCache', label: 'Clear Cache', type: 'button', labelBtn: 'Clear', action: 'clearCache', desc: 'Reset everything' }
+            ]}
+        ];
+
+        function renderSettingsMenu() {
+            const container = document.getElementById('settingsContainer');
+            container.innerHTML = '';
+            
+            settingsConfig.forEach(group => {
+                const grpDiv = document.createElement('div');
+                grpDiv.className = 'settings-group';
+                grpDiv.innerHTML = `<div class="settings-group-title">${group.group}</div>`;
+                
+                group.items.forEach(item => {
+                    const itemDiv = document.createElement('div');
+                    itemDiv.className = 'setting-item';
+                    
+                    let controlHTML = '';
+                    if (item.type === 'toggle') {
+                        const isActive = appSettings[item.id] ? 'active' : '';
+                        controlHTML = `<div class="toggle-switch ${isActive}" data-id="${item.id}"></div>`;
+                    } else if (item.type === 'select') {
+                        let opts = item.options.map(o => `<option value="${o}" ${appSettings[item.id] === o ? 'selected' : ''}>${o}</option>`).join('');
+                        controlHTML = `<select class="setting-select" data-id="${item.id}">${opts}</select>`;
+                    } else if (item.type === 'color') {
+                        controlHTML = `<input type="color" class="setting-input" data-id="${item.id}" value="${appSettings[item.id]}">`;
+                    } else if (item.type === 'button') {
+                        controlHTML = `<button class="setting-btn" data-action="${item.action}">${item.labelBtn}</button>`;
+                    }
+                    
+                    itemDiv.innerHTML = `
+                        <div class="setting-info">
+                            <div class="setting-name">${item.label}</div>
+                            <div class="setting-desc">${item.desc}</div>
+                        </div>
+                        <div class="setting-control">${controlHTML}</div>
+                    `;
+                    grpDiv.appendChild(itemDiv);
+                });
+                container.appendChild(grpDiv);
+            });
+            
+            // Attach bindings
+            container.querySelectorAll('.toggle-switch').forEach(el => {
+                el.addEventListener('click', function() {
+                    playSound();
+                    this.classList.toggle('active');
+                    appSettings[this.dataset.id] = this.classList.contains('active');
+                    saveSettings();
+                });
+            });
+            container.querySelectorAll('.setting-select, .setting-input').forEach(el => {
+                el.addEventListener('change', function() {
+                    playSound();
+                    appSettings[this.dataset.id] = this.value;
+                    saveSettings();
+                });
+            });
+            container.querySelectorAll('.setting-btn').forEach(el => {
+                el.addEventListener('click', function() {
+                    playSound();
+                    const action = this.dataset.action;
+                    if(action === 'clearCache') {
+                        if(confirm('Are you sure you want to clear all data? This will restart the app.')) {
+                            localStorage.clear();
+                            window.location.reload();
+                        }
+                    } else if(action === 'showStats') {
+                        document.getElementById('statSessions').textContent = appStats.sessions;
+                        document.getElementById('statOpened').textContent = appStats.opened;
+                        document.getElementById('statFavs').textContent = appStats.favs;
+                        document.getElementById('statsModal').classList.add('active');
+                    }
+                });
+            });
+        }
+
+
+        // --- 1. DATA & STATE ---
+        const ALL_CATEGORIES = ['All', 'Anime', 'Movies', 'Sports', 'Education', 'AI Tools', 'Music', 'Games'];
+        
+        const defaultData = [
+            {
+                id: '1', name: 'Crunchyroll', category: 'Anime',
+                description: 'The world\'s largest anime collection. Watch ad-free.',
+                logo: 'https://logo.clearbit.com/crunchyroll.com', url: 'https://crunchyroll.com',
+                useful: 'Simulcasts right after Japan release.'
+            },
+            {
+                id: '2', name: 'Netflix', category: 'Movies',
+                description: 'Watch TV shows and movies online anywhere.',
+                logo: 'https://logo.clearbit.com/netflix.com', url: 'https://netflix.com',
+                useful: 'Huge catalog of originals and classics.'
+            },
+            {
+                id: '3', name: 'ChatGPT', category: 'AI Tools',
+                description: 'Conversational AI model developed by OpenAI.',
+                logo: 'https://logo.clearbit.com/openai.com', url: 'https://chatgpt.com',
+                useful: 'Assists with coding, writing, and learning.'
+            },
+            {
+                id: '4', name: 'Spotify', category: 'Music',
+                description: 'Digital music service with millions of songs.',
+                logo: 'https://logo.clearbit.com/spotify.com', url: 'https://spotify.com',
+                useful: 'Personalized curated playlists and podcasts.'
+            }
+        ];
+
+        let websites = [];
+        let activeCategory = 'All';
+        let searchQuery = '';
+        let isDevUnlocked = false; // Session memory for dev panel
+
+        // Initialize Data
+        function initData() {
+            const stored = localStorage.getItem('liquidLinkData');
+            if (stored) {
+                try {
+                    websites = JSON.parse(stored);
+                } catch(e) {
+                    websites = [...defaultData];
+                }
+            } else {
+                websites = [...defaultData];
+                saveData();
+            }
+        }
+
+        function saveData() {
+            localStorage.setItem('liquidLinkData', JSON.stringify(websites));
+        }
+
+        
+        function toggleFav(id) {
+            playSound();
+            if(favList.includes(id)) {
+                favList = favList.filter(f => f !== id);
+                showToast('Removed from Favorites');
+            } else {
+                favList.push(id);
+                showToast('Added to Favorites');
+            }
+            saveFavs();
+            renderCards();
+        }
+        
+        function openLink(e, url) {
+            playSound();
+            if (appSettings.linkWarning) {
+                if(!confirm('You are about to open an external link: ' + url + '\nProceed?')) {
+                    e.preventDefault();
+                    return;
+                }
+            }
+            appStats.opened++;
+            saveStats();
+        }
+
+
+        // --- 2. RENDERING ---
+        const cardsContainer = document.getElementById('cardsContainer');
+        const categoriesContainer = document.getElementById('categoriesContainer');
+
+        
+        function renderCategories() {
+            categoriesContainer.innerHTML = '';
+            
+            let cats = [...ALL_CATEGORIES];
+            if (appSettings.favSection) cats.splice(1, 0, 'Favorites'); // Add Favs after All
+            
+            if (appSettings.safeMode) cats = cats.filter(c => !['Anime', 'Movies'].includes(c)); // Example safe mode filter
+            
+            cats.forEach(cat => {
+                const chip = document.createElement('div');
+                chip.className = `chip ${cat === activeCategory ? 'active' : ''}`;
+                chip.textContent = cat;
+                chip.addEventListener('click', () => {
+                    playSound();
+                    activeCategory = cat;
+                    renderCategories();
+                    renderCards();
+                });
+                categoriesContainer.appendChild(chip);
+            });
+        }
+
+        function renderCards() {
+            cardsContainer.innerHTML = '';
+            
+            
+            // Filter
+            const filtered = websites.filter(site => {
+                if(appSettings.safeMode && (site.category === 'Anime' || site.category === 'Movies')) return false;
+                
+                let matchCat = activeCategory === 'All' || site.category === activeCategory;
+                if(activeCategory === 'Favorites') matchCat = favList.includes(site.id);
+                
+                const matchSearch = site.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                                    site.description.toLowerCase().includes(searchQuery.toLowerCase());
+                return matchCat && matchSearch;
+            });
+
+
+            if (filtered.length === 0) {
+                cardsContainer.innerHTML = '<div class="empty-state">No websites found.</div>';
+                return;
+            }
+
+            // Render
+            filtered.forEach((site, index) => {
+                const card = document.createElement('div');
+                card.className = 'web-card glass';
+                card.style.animationDelay = `${index * 0.05}s`;
+                
+                card.innerHTML = `
+                    <div class="web-card-header">
+                        <div class="web-logo">
+                            <img src="${site.logo}" alt="${site.name} logo" onerror="this.src='https://ui-avatars.com/api/?name=${encodeURIComponent(site.name)}&background=random&color=fff'">
+                        </div>
+                        <div class="web-info">
+                            <div class="web-name">${site.name}</div>
+                            <div class="web-category">${site.category}</div>
+                        </div>
+                    </div>
+                    <div class="web-desc">${site.description}</div>
+                    
+                `;
+                cardsContainer.appendChild(card);
+            });
+        }
+
+        // Search listener
+        document.getElementById('searchInput').addEventListener('input', (e) => {
+            searchQuery = e.target.value;
+            renderCards();
+        });
+
+
+        // --- 3. NAVIGATION LOGIC ---
+        const navItems = document.querySelectorAll('.nav-item');
+        const screens = document.querySelectorAll('.screen');
+
+        function switchTab(targetId, updateNav = true) {
+            playSound();
+            screens.forEach(s => s.classList.remove('active'));
+            document.getElementById(targetId).classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+            
+            if(updateNav) {
+                navItems.forEach(nav => {
+                    if (nav.dataset.target === targetId) nav.classList.add('active');
+                    else nav.classList.remove('active');
+                });
+            }
+        }
+
+        navItems.forEach(item => {
+            item.addEventListener('click', () => {
+                const target = item.dataset.target;
+                
+                // Dev tab protection
+                if (target === 'screen-dev' && !isDevUnlocked) {
+                    showAuthModal(item);
+                    return;
+                }
+                
+                switchTab(target);
+            });
+        });
+
+        // --- 4. AUTHENTICATION (DEV PANEL) ---
+        const modalOverlay = document.getElementById('passwordModal');
+        const modalBox = document.getElementById('modalBox');
+        const authInput = document.getElementById('authPassword');
+        const authError = document.getElementById('authError');
+        let pendingNavItem = null;
+
+        function showAuthModal(navItem) {
+            pendingNavItem = navItem;
+            authInput.value = '';
+            authError.classList.remove('visible');
+            modalOverlay.classList.add('active');
+            setTimeout(() => authInput.focus(), 100);
+        }
+
+        function closeAuthModal() {
+            modalOverlay.classList.remove('active');
+        }
+
+        function attemptUnlock() {
+            if (authInput.value === 'pqutyuuwequ') {
+                isDevUnlocked = true;
+                closeAuthModal();
+                if (pendingNavItem) {
+                    switchTab(pendingNavItem.dataset.target);
+                    // update active nav manually
+                    navItems.forEach(nav => nav.classList.remove('active'));
+                    pendingNavItem.classList.add('active');
+                }
+            } else {
+                authError.classList.add('visible');
+                modalBox.classList.remove('shake');
+                void modalBox.offsetWidth; // trigger reflow
+                modalBox.classList.add('shake');
+            }
+        }
+
+        document.getElementById('btnSubmitAuth').addEventListener('click', attemptUnlock);
+        document.getElementById('btnCancelAuth').addEventListener('click', closeAuthModal);
+        authInput.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') attemptUnlock();
+        });
+
+
+        // --- 5. DEVELOPER FORM LOGIC ---
+        const form = document.getElementById('addWebForm');
+        
+        function showToast(msg) {
+            const toast = document.getElementById('toastMessage');
+            toast.textContent = msg;
+            toast.classList.add('show');
+            setTimeout(() => toast.classList.remove('show'), 3000);
+        }
+
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+            
+            const name = document.getElementById('devName').value.trim();
+            const category = document.getElementById('devCategory').value;
+            const logo = document.getElementById('devLogo').value.trim();
+            const url = document.getElementById('devUrl').value.trim();
+            const desc = document.getElementById('devDesc').value.trim();
+            const useful = document.getElementById('devUseful').value.trim();
+
+            // Validate duplicate
+            const exists = websites.some(s => s.name.toLowerCase() === name.toLowerCase());
+            if (exists) {
+                alert('A website with this name already exists.');
+                return;
+            }
+
+            const newSite = {
+                id: Date.now().toString(),
+                name, category, logo, url, description: desc, useful
+            };
+
+            websites.unshift(newSite); // Add to top
+            saveData();
+            
+            // Success
+            form.reset();
+            showToast('Website published successfully!');
+            switchTab('screen-home');
+            
+            // Re-render
+            activeCategory = 'All';
+            searchQuery = '';
+            document.getElementById('searchInput').value = '';
+            renderCategories();
+            renderCards();
+        });
+
+
+        // --- 6. STARTUP ---
+        initSettings();
+        initData();
+        renderCategories();
+        renderCards();
+
+        // --- 7. WATERMARK PROTECTION ---
+        (function() {
+            const wmId = 'watermark-kabbo';
+            
+            function enforceWatermark() {
+                let wm = document.getElementById(wmId);
+                if (!wm) {
+                    wm = document.createElement('div');
+                    wm.id = wmId;
+                    wm.textContent = 'Made By Kabbo';
+                    document.body.appendChild(wm);
+                }
+            }
+
+            const observer = new MutationObserver((mutations) => {
+                mutations.forEach((mutation) => {
+                    const removedNodes = Array.from(mutation.removedNodes);
+                    const isRemoved = removedNodes.some(node => node.id === wmId);
+                    if (isRemoved) {
+                        enforceWatermark();
+                    }
+                });
+            });
+
+            observer.observe(document.body, { childList: true, subtree: true });
+        })();
+
+    </script>
+</body>
+</html>
